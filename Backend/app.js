@@ -4,7 +4,8 @@ const validator=require('validator')
 var bcrypt = require('bcryptjs');
 const bodyParser = require("body-parser");
 const cors = require("cors");
-
+const jwt = require("jsonwebtoken");
+const SECRET_KEY = "NOTESAPI"
 // const router = express.Router();
 const { body, validationResult } = require('express-validator');
 
@@ -12,6 +13,7 @@ const { body, validationResult } = require('express-validator');
 mongoose.set('strictQuery', false);
 
 var app = express()
+app.use(express.json())
 app.use(cors({origin: "*"}))
 mongoose.connect("mongodb://127.0.0.1:27017/ExerciseTracking")
 .then(()=>{
@@ -41,7 +43,7 @@ const myschema=new mongoose.Schema({
         email:{
         type:String,
         required:true,
-        unique:true,
+        // unique:true,
         validate(value){
             if(!validator.isEmail(value)){
                 throw new  Error("Email is invalid")
@@ -53,6 +55,17 @@ const myschema=new mongoose.Schema({
         required:true
     }
 })
+//Generating Tokens
+// myschema.methods.generateAuthToken = async function (){
+// try{
+    
+//         const token= await jwt.sign({_id:this._id.toString()} , "mynameisazeemchaudary5iliveinlahore")
+//       console.log(token)
+// }catch(err){
+// res.send(" There is an error "+err)
+// console.log(err)
+// }
+// }
 
 myschema.pre("save", async function(next){
     try{
@@ -116,17 +129,51 @@ app.use(bodyParser.json());
     app.post("/", async (req, res)=> {
     console.log(req.body)
     const {firstName, lastName, email, password} = req.body;
-    if(!firstName || !email || !password) {
+    User.findOne({email:email}).then((user)=>{
+        if(user)
+        return res.status(400).json({message : "user already exists"})
+ else if(!firstName || !lastName || !email || !password) {
         return res.status(400).send({status: false, message: "Please submit all required fields!"})
-    }
-    if(password.length < 8) {
+    }else if(password.length < 8) {
         return res.status(400).send({status: false, message: "Password should be at least 8 characters!"})
     }
-    if(!validateEmail(email)) {
+    else if(!validateEmail(email)) {
         return res.status(400).send({status: false, message: "Please enter valid email"})
     }
-    let user = await User.create({firstName, lastName, email, password});
-    res.send({status: true, message: "User created successfully!", user})
+    else{
+        try{
+const result =  new User({
+        firstName : firstName , 
+        lastName : lastName , 
+        email:email ,
+        password : password 
+    })
+    result.save();
+    let token = null
+    token=jwt.sign({email : result.email , id : result._id} , SECRET_KEY);
+    return res.status(201).json({ message: "User created successfully!", data:[result , token]})
+        }
+        catch(err){
+    console.log(err)
+    res.status(500).json({message : "Something went wrong"});
+        }
+
+    }
+    })
+   
+    
+    
+
+    
+
+ 
+        
+            //let user = await User.create({firstName, lastName, email, password});
+    
+    //const hashedpassword = await bcrypt.hash(password,10);
+    
+    //const token = await User.generateAuthToken();
+    
 })
 
 const validateEmail = (email) => {
@@ -136,8 +183,93 @@ const validateEmail = (email) => {
         /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
       );
   };
-    // app.use("/", router);
+    
+//   app.get('/',async (req,res)=>{
+//    
+//     User.findOne({email :req.body.email})
+//     .then((user)=>{
+//         const hash =user.password;
+//         bcrypt.compare(req.body.password,hash, function(err,result){
+//             if(err) console.log("You are having an error in GET API "+err)
+//             //const {firstName, lastName, email, password} = res.body;
+// //res.send( res.body)
+// res.set(res.body)
+//         }
+//         )
+//     })
+//   })
 
+// app.post('/login' , async (req, res)=>{
+//     try{
+//         const email= req.body.email;
+//         const password=re.body.password;
+//         const useremail = await User.findOne({email :req.body.email})
+    
+//         const isMatch = await bcrypt.compare(password , useremail.password)
+//         if(isMatch){
+//             res.status(201)
+//         }
+//         else{
+//             res.send("invalid password")
+//         }
+//     }catch(err){
+//         res.status(400).send("invalid login details")
+//     }
+   
+// })
+
+app.post("/login", (req, res) => {
+    User.findOne({ email: req.body.email })
+    .then((user) => {
+        console.log(user)
+      const hash = user.password;
+      bcrypt.compare(req.body.password, hash, function (err, result) {
+        if(result){
+        const logindata = {
+          fname: user.firstName,
+          lname: user.lastName,
+          emailid: user.email
+        };
+        token=jwt.sign({email : result.email , id : result._id} , SECRET_KEY);
+        return res
+        .status(200)
+        .json({
+        success: true,
+        message: "Logged In succesfully",
+        data: [logindata , token ]
+      });
+    }
+      if(err){
+        console.log("You are having an error while login "+err)
+      }
+        else {res.send("Incorrect Password")}
+      });
+    }
+    )
+   .catch(()=>{
+    res.send("not valid email")
+   })
+   
+  });
+
+  app.get('/Profile', (req, res)=>{  
+    const token = req.headers.authorization.split(' ')[1]; 
+    //Authorization: 'Bearer TOKEN'
+    if(!token)
+    {
+        res.status(200).json({success:false, message: "Error! Token was not provided."});
+    }
+    //Decoding the token
+    const decodedToken = jwt.verify(token,SECRET_KEY );
+    res.status(200).json({
+        success:true, 
+        data:{
+            userId:decodedToken.userId,
+     email:decodedToken.email
+    }});   
+})
+
+  
     //For API Testing in Postman Use this URL
 //http://localhost:8081/api/v1/user/new
 app.listen(8081 , ()=>{

@@ -53,7 +53,13 @@ const myschema=new mongoose.Schema({
     password:{
         type:String,
         required:true
-    }
+    },
+    exercise:{
+        date:{
+            type:Date,
+            
+        }
+}
 })
 //Generating Tokens
 // myschema.methods.generateAuthToken = async function (){
@@ -93,7 +99,7 @@ app.use(bodyParser.json());
 
 //First Method for validating POST API
 // app.post("/",
-// body('firstName').isString().isLength({
+// body('firstName').isString().isLength({   
 //     min: 2,
 //     max:20
 // }),
@@ -165,6 +171,7 @@ const result =  new User({
     
 
     
+    //  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2NzM3NjE5NjJ9.Tbm7_LzZNQInUsAgfPKCU04491pVnz5x4D6VmfzdWF0"
 
  
         
@@ -252,24 +259,85 @@ app.post("/login", (req, res) => {
    
   });
 
-  app.get('/Profile', (req, res)=>{  
+//   app.get('/Profile', (req, res)=>{  
+//     const token = req.headers.authorization.split(' ')[1]; 
+//     //Authorization: 'Bearer TOKEN'
+//     if(!token)
+//     {
+//         res.status(200).json({success:false, message: "Error! Token was not provided."});
+//     }
+//     //Decoding the token
+//     const decodedToken = jwt.verify(token,SECRET_KEY );
+//     res.status(200).json({
+//         success:true, 
+//         data:{
+//             userId:decodedToken.userId,
+//      email:decodedToken.email
+//     }});   
+// })
+
+app.get('/Profile', (req, res)=>{  
     const token = req.headers.authorization.split(' ')[1]; 
     //Authorization: 'Bearer TOKEN'
     if(!token)
     {
-        res.status(200).json({success:false, message: "Error! Token was not provided."});
+        res.status(200).json({success:false, message: "Error! token not provided"});
     }
     //Decoding the token
-    const decodedToken = jwt.verify(token,SECRET_KEY );
-    res.status(200).json({
-        success:true, 
-        data:{
-            userId:decodedToken.userId,
+    const decodedToken = jwt.verify(token, SECRET_KEY);
+    res.status(200).json({success:true, data:{fname:decodedToken.fname, lname:decodedToken.lname,
      email:decodedToken.email
-    }});   
-})
+    }}
+    )});
 
-  
+     app.post('/EditProfile', (req,res)=>{
+        User.updateOne({email:req.body.email},{$set: {
+          "firstName": req.body.newfname, 
+          "lastName": req.body.newlname,
+          "email":req.body.newEmail
+        }})
+        .then(()=>
+        {
+          
+          return res
+          .status(200).json({success:true, message:"Profile Edited successfully"})
+        })
+        .catch(()=>{
+          res.send("there was some issue")
+        })
+        })
+
+        app.post('/UpdatePassword', async (req,res)=>{
+            const {email,password} = req.body;
+            if(password.length < 8) {
+                return res.status(400).send({status: false, message: "Password should be at least 8 characters!"})
+            }
+            else if(!validateEmail(email)) {
+                return res.status(400).send({status: false, message: "Please enter valid email"})
+            }
+            else{
+                console.log("Your updated password is " +password);
+
+                const newPass = await bcrypt.hash(password , 10)
+                console.log("Your updated password (Encrypted ) is " +newPass);
+
+                User.updateOne({email:email},{$set: {
+                    "password" : newPass
+                  }})
+                  .then(()=>
+                  {
+                    
+                    return res
+                    .status(200).json({success:true, message:"Password Edited successfully"})
+                  })
+                  .catch(()=>{
+                    res.send("there was some issue")
+                  })
+            }
+            
+            })
+
+
     //For API Testing in Postman Use this URL
 //http://localhost:8081/api/v1/user/new
 app.listen(8081 , ()=>{

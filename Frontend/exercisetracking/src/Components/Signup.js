@@ -2,7 +2,7 @@ import React, {useState} from "react";
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { Link } from "react-router-dom";
-
+import pic from "./signup.png"
 
 const Signup = () => {
   const [firstName, setFirstName] = useState('');
@@ -42,7 +42,7 @@ const Signup = () => {
           .then(function (response) {
             console.log(response);
             const data = response.data;
-            if(data.status) {
+            if(data.status==201) {
                 toast.success(data.message)
             }
             else {
@@ -130,9 +130,9 @@ const Signup = () => {
                 </form>
 
               </div>
-              <div className="col-md-10 col-lg-6 col-xl-7 d-flex align-items-center order-1 order-lg-2">
+              <div className="col-md-10 col-lg-6 col-xl-7 d-flex align-items-center order-1 order-lg-2 signupimg mt-3">
 
-                <img src="https://mdbcdn.b-cdn.net/img/Photos/new-templates/bootstrap-registration/draw1.webp"
+                <img src={pic}
                   className="img-fluid" alt="Sample image" />
 
               </div>

@@ -54,12 +54,14 @@ const myschema=new mongoose.Schema({
         type:String,
         required:true
     },
-    exercise:{
-        date:{
-            type:Date,
-            
-        }
-}
+    exercise: [
+      {
+        Date: { type: String },
+        Type: { type: String },
+        Duration: { type: String },
+        Comments: { type: String },
+      },
+    ],
 })
 //Generating Tokens
 // myschema.methods.generateAuthToken = async function (){
@@ -337,7 +339,43 @@ app.get('/Profile', (req, res)=>{
             
             })
 
-
+            app.post("/workout", (req, res) => {
+              User.updateOne(
+                { email: req.body.email },
+                {
+                  $push: {
+                    track: {
+                      Date: req.body.Date,
+                      Type: req.body.Type,
+                      Duration: req.body.Duration,
+                      Comments: req.body.Comments,
+                    },
+                  },
+                }
+              )
+                .then(() => {
+                  User.findOne({ email: req.body.email }).then((user) => {
+                    token = jwt.sign(
+                      {
+                        fname: user.firstName,
+                        lname: user.lastName,
+                        email: user.email,
+                        track: user.track,
+                      },
+                      SECRET_KEY,
+                      { expiresIn: "10h" }
+                    );
+                    return res.status(200).json({
+                      success: true,
+                      message: "Exercise added successfully",
+                      token: token,
+                    });
+                  });
+                })
+                .catch(() => {
+                  res.send("there was some issue");
+                });
+            });
     //For API Testing in Postman Use this URL
 //http://localhost:8081/api/v1/user/new
 app.listen(8081 , ()=>{
